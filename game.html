@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Typing Game - Levels</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1e1e2f;
+      color: #fff;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .words {
+      max-width: 800px;
+      margin: 20px auto;
+      font-size: 1.5rem;
+      line-height: 2rem;
+      word-wrap: break-word;
+    }
+
+    .letter.correct {
+      color: #4caf50;
+    }
+
+    .letter.incorrect {
+      color: #f44336;
+    }
+
+    .letter.current {
+      text-decoration: underline;
+    }
+
+    input {
+      opacity: 0;
+      position: absolute;
+    }
+
+    .info {
+      font-size: 1.2rem;
+      margin-top: 20px;
+    }
+
+    .info span {
+      display: inline-block;
+      margin: 0 10px;
+    }
+
+    .level-select button {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 8px;
+      background-color: #333;
+      color: white;
+      cursor: pointer;
+    }
+
+    .level-select button:hover {
+      background-color: #555;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Typing Game with Levels</h1>
+
+  <div class="level-select" id="levelSelect">
+    <p>Select Level:</p>
+    <button onclick="startGame('easy')">Easy</button>
+    <button onclick="startGame('medium')">Medium</button>
+    <button onclick="startGame('hard')">Hard</button>
+  </div>
+
+  <div class="info hidden" id="gameInfo">
+    <span>⏱ Time Left: <strong id="time">60</strong>s</span>
+    <span>💬 WPM: <strong id="wpm">0</strong></span>
+    <span>🎯 Accuracy: <strong id="accuracy">100</strong>%</span>
+  </div>
+
+  <div class="words hidden" id="words"></div>
+  <input type="text" id="hiddenInput" autofocus />
+  <div class="info" id="endMessage"></div>
+
+  <script>
+    const wordsEl = document.getElementById("words");
+    const input = document.getElementById("hiddenInput");
+    const timeEl = document.getElementById("time");
+    const wpmEl = document.getElementById("wpm");
+    const accuracyEl = document.getElementById("accuracy");
+    const endMessage = document.getElementById("endMessage");
+    const gameInfo = document.getElementById("gameInfo");
+    const levelSelect = document.getElementById("levelSelect");
+
+    const wordBanks = {
+      easy: ["cat", "dog", "sun", "run", "bat", "fan", "cup", "car", "hat", "box"],
+      medium: ["apple", "banana", "window", "rocket", "planet", "button", "handle", "yellow", "guitar", "forest"],
+      hard: ["architecture", "responsibility", "acknowledgment", "hypothetical", "circumstance", "transformation", "appreciation", "multiplication"]
+    };
+
+    let words = [];
+    let level = "easy";
+    let TIME_LIMIT = 60;
+    const WORD_COUNT = 100;
+
+    let charIndex = 0;
+    let correctChars = 0;
+    let totalTyped = 0;
+    let startTime = null;
+    let interval;
+    let timerStarted = false;
+
+    function startGame(selectedLevel) {
+      level = selectedLevel;
+      if (level === 'easy') TIME_LIMIT = 60;
+      if (level === 'medium') TIME_LIMIT = 50;
+      if (level === 'hard') TIME_LIMIT = 40;
+
+      levelSelect.classList.add('hidden');
+      gameInfo.classList.remove('hidden');
+      wordsEl.classList.remove('hidden');
+
+      generateWords();
+      displayWords();
+      input.focus();
+      document.addEventListener("click", () => input.focus());
+    }
+
+    function generateWords() {
+      const bank = wordBanks[level];
+      words = [];
+      for (let i = 0; i < WORD_COUNT; i++) {
+        words.push(bank[Math.floor(Math.random() * bank.length)]);
+      }
+    }
+
+    function displayWords() {
+      wordsEl.innerHTML = '';
+      words.join(' ').split('').forEach((char, index) => {
+        const span = document.createElement('span');
+        span.textContent = char;
+        span.classList.add('letter');
+        if (index === 0) span.classList.add('current');
+        wordsEl.appendChild(span);
+      });
+    }
+
+    function updateStats() {
+      const elapsedTime = (Date.now() - startTime) / 1000;
+      const wpm = Math.round((correctChars / 5) / (elapsedTime / 60));
+      const accuracy = Math.round((correctChars / totalTyped) * 100) || 0;
+      wpmEl.textContent = wpm;
+      accuracyEl.textContent = accuracy;
+    }
+
+    function startTimer() {
+      startTime = Date.now();
+      interval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const remaining = TIME_LIMIT - elapsed;
+        timeEl.textContent = remaining;
+
+        if (remaining <= 0) {
+          clearInterval(interval);
+          input.blur();
+          input.disabled = true;
+          showEndStats();
+        } else {
+          updateStats();
+        }
+      }, 1000);
+    }
+
+    function showEndStats() {
+      const totalTime = TIME_LIMIT;
+      const finalWPM = Math.round((correctChars / 5) / (totalTime / 60));
+      const finalAccuracy = Math.round((correctChars / totalTyped) * 100) || 0;
+      endMessage.innerHTML = `
+        <p><strong>Game Over!</strong></p>
+        <p>📝 Final WPM: <strong>${finalWPM}</strong></p>
+        <p>🎯 Final Accuracy: <strong>${finalAccuracy}%</strong></p>
+      `;
+    }
+
+    input.addEventListener("input", () => {
+      const letters = wordsEl.querySelectorAll('.letter');
+      const typed = input.value;
+
+      if (!timerStarted) {
+        startTimer();
+        timerStarted = true;
+      }
+
+      if (charIndex >= letters.length) return;
+
+      const currentChar = letters[charIndex];
+      currentChar.classList.remove("current");
+
+      if (typed === currentChar.textContent) {
+        currentChar.classList.add("correct");
+        correctChars++;
+      } else {
+        currentChar.classList.add("incorrect");
+      }
+
+      charIndex++;
+      totalTyped++;
+
+      if (charIndex < letters.length) {
+        letters[charIndex].classList.add("current");
+      }
+
+      input.value = '';
+      updateStats();
+    });
+  </script>
+</body>
+</html>
